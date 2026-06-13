@@ -138,7 +138,7 @@ auto_refresh = col_btn2.toggle("⏱ Auto-refrescar cada 1 hora", value=True)
 partidos_mon  = cargar_partidos(jid_mon)
 quinielas_mon = cargar_quinielas(jid_mon)
 
-# Sincronización con la API de ESPN
+# Sincronización automática con ESPN
 if btn_refresh or auto_refresh:
     slugs_mon = set(p.get("league_slug","") for p in partidos_mon if p.get("league_slug") and p.get("fixture_id"))
     scores_vivo = {}
@@ -170,7 +170,7 @@ num_cartones = max((q["numero_carton"] for q in quinielas_mon), default=0)
 preds_map = {(q["casilla"], q["numero_carton"]): q["prediccion"] for q in quinielas_mon}
 carton_ids = list(range(1, num_cartones + 1))
 
-# Filtrado por tramos de casillas tradicionales de Progol
+# Filtrado de casillas para Progol y Revancha
 partidos_normal   = [p for p in partidos_mon if p["casilla"] <= 14]
 partidos_revancha = [p for p in partidos_mon if 15 <= p["casilla"] <= 21]
 
@@ -180,10 +180,10 @@ aciertos_revancha = {}
 for ci in carton_ids:
     preds = {q["casilla"]: q["prediccion"] for q in quinielas_mon if q["numero_carton"] == ci}
     ac_n = sum(1 for p in partidos_normal if p.get("resultado") and preds.get(p["casilla"]) == p["resultado"])
-    aciertos_normal[ci] = ac_n # Se almacena directamente el número entero
+    aciertos_normal[ci] = ac_n
     
     ac_r = sum(1 for p in partidos_revancha if p.get("resultado") and preds.get(p["casilla"]) == p["resultado"])
-    aciertos_revancha[ci] = ac_r # Se almacena directamente el número entero
+    aciertos_revancha[ci] = ac_r
 
 thead_ths = "".join([f'<th class="th-carton">Q{ci}</th>' for ci in carton_ids])
 
@@ -241,7 +241,6 @@ def construir_bloque_filas(lista_partidos):
             
             pred_cells += f'<td class="pred-cell {css}">{mostrar_pred}</td>'
 
-        # Fila limpia: Se remueve el span "casilla-inline" que generaba el número de control entre paréntesis
         html_bloque += "<tr>"
         html_bloque += '<td class="td-equipos">'
         html_bloque += f'<div class="eq-local">{loc_abbr}</div>'
@@ -258,17 +257,17 @@ rows_normal_html = construir_bloque_filas(partidos_normal)
 totales_normal_cells = ""
 for ci in carton_ids:
     ac = aciertos_normal.get(ci, 0)
-    totales_normal_cells += f'<td class="td-total style-n">{ac}</td>' # Imprime solo el número limpio
+    totales_normal_cells += f'<td class="td-total style-n">{ac}</td>'
 
 rows_revancha_html = construir_bloque_filas(partidos_revancha)
 
 totales_revancha_cells = ""
 for ci in carton_ids:
     ac = aciertos_revancha.get(ci, 0)
-    totales_revancha_cells += f'<td class="td-total style-r">{ac}</td>' # Imprime solo el número limpio
+    totales_revancha_cells += f'<td class="td-total style-r">{ac}</td>'
 
 # ============================================================
-# ESTILOS DE LA TABLA (CSS NATIVO)
+# ESTILOS DE LA TABLA (CSS CON MEJORAS CRUCIALES PARA MÓVIL)
 # ============================================================
 st.markdown("""
 <style>
@@ -286,7 +285,9 @@ st.markdown("""
 }
 .qtable th, .qtable td { padding: 10px 8px; text-align: center; border-bottom: 1px solid #1e2640; }
 .th-equipos  { background:#111827; color:#4b5680; font-size:11px; text-align:left; width:160px; }
-.th-marc     { background:#111827; color:#4b5680; font-size:11px; width:85px; }
+
+/* EVITA QUE EL CELULAR RESCOJA ESTA COLUMNA */
+.th-marc, .td-marc { background:#111827; color:#4b5680; font-size:11px; width:95px; min-width:95px; }
 .th-carton   { background:#111827; color:#94a3b8; font-size:12px; font-weight:700; min-width:45px; }
 
 .td-equipos  { text-align:left; }
@@ -296,10 +297,12 @@ st.markdown("""
 .marc-ft     { color:#22c55e; font-weight:700; font-size:15px; }
 .marc-live   { color:#ef4444; font-weight:700; font-size:15px; }
 .marc-ns     { color:#334155; font-size:15px; }
-.badge-ft    { display:block; font-size:9px; color:#22c55e; font-weight: 600; }
-.badge-live  { display:block; font-size:9px; color:#ef4444; font-weight: 600; animation: blink 1s infinite; }
-.badge-ns    { display:block; font-size:10px; color:#94a3b8; font-weight: 500; line-height: 1.2; }
-.date-subtext { font-size: 8px; color: #4b5680; margin-top: 1px; }
+.badge-ft    { display:block; font-size:10px; color:#22c55e; font-weight: 600; }
+.badge-live  { display:block; font-size:10px; color:#ef4444; font-weight: 600; animation: blink 1s infinite; }
+
+/* HORA Y FECHA AGRESIVOS PARA PANTALLAS CHICAS */
+.badge-ns    { display:block; font-size:15px; color:#cbd5e1; font-weight: 700; line-height: 1.3; margin-top: 2px; }
+.date-subtext { font-size: 12px; color: #818cf8; font-weight: 600; margin-top: 3px; }
 
 @keyframes blink { 50%{ opacity:0.3; } }
 
@@ -324,7 +327,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ============================================================
-# RENDERIZADO DEL HTML DE LA TABLA
+# RENDERIZADO DEL HTML
 # ============================================================
 total_colspan_sin_q = 2 + num_cartones
 
