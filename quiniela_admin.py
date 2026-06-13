@@ -133,12 +133,12 @@ jid_mon = opts3[sel3]
 
 col_btn1, col_btn2 = st.columns([1, 2])
 btn_refresh  = col_btn1.button("🔄 Actualizar marcadores")
-auto_refresh = col_btn2.toggle("⏱ Auto-refrescar cada 60s", value=True)
+auto_refresh = col_btn2.toggle("⏱ Auto-refrescar cada 1 hora", value=True)
 
 partidos_mon  = cargar_partidos(jid_mon)
 quinielas_mon = cargar_quinielas(jid_mon)
 
-# Lógica de sincronización con ESPN
+# Sincronización con la API de ESPN
 if btn_refresh or auto_refresh:
     slugs_mon = set(p.get("league_slug","") for p in partidos_mon if p.get("league_slug") and p.get("fixture_id"))
     scores_vivo = {}
@@ -170,7 +170,7 @@ num_cartones = max((q["numero_carton"] for q in quinielas_mon), default=0)
 preds_map = {(q["casilla"], q["numero_carton"]): q["prediccion"] for q in quinielas_mon}
 carton_ids = list(range(1, num_cartones + 1))
 
-# Separación de casillas para Progol y Revancha
+# Filtrado por tramos de casillas tradicionales de Progol
 partidos_normal   = [p for p in partidos_mon if p["casilla"] <= 14]
 partidos_revancha = [p for p in partidos_mon if 15 <= p["casilla"] <= 21]
 
@@ -180,12 +180,10 @@ aciertos_revancha = {}
 for ci in carton_ids:
     preds = {q["casilla"]: q["prediccion"] for q in quinielas_mon if q["numero_carton"] == ci}
     ac_n = sum(1 for p in partidos_normal if p.get("resultado") and preds.get(p["casilla"]) == p["resultado"])
-    ter_n = sum(1 for p in partidos_normal if p.get("resultado"))
-    aciertos_normal[ci] = (ac_n, ter_n)
+    aciertos_normal[ci] = ac_n # Se almacena directamente el número entero
     
     ac_r = sum(1 for p in partidos_revancha if p.get("resultado") and preds.get(p["casilla"]) == p["resultado"])
-    ter_r = sum(1 for p in partidos_revancha if p.get("resultado"))
-    aciertos_revancha[ci] = (ac_r, ter_r)
+    aciertos_revancha[ci] = ac_r # Se almacena directamente el número entero
 
 thead_ths = "".join([f'<th class="th-carton">Q{ci}</th>' for ci in carton_ids])
 
@@ -210,7 +208,6 @@ def construir_bloque_filas(lista_partidos):
         else:
             hora = (p.get("hora","") or "")[:5]
             dia  = p.get("dia","") or ""
-            # Coloca la fecha abajo de la hora usando un tag de sub-texto o un div interno
             est_badge = f'<span class="badge-ns">{hora}<div class="date-subtext">{dia}</div></span>'
 
         loc_abbr = p["local_nombre"][:12].upper()
@@ -244,10 +241,10 @@ def construir_bloque_filas(lista_partidos):
             
             pred_cells += f'<td class="pred-cell {css}">{mostrar_pred}</td>'
 
-        # Construcción de la fila omitiendo por completo el TD de la casilla (Columna Q)
+        # Fila limpia: Se remueve el span "casilla-inline" que generaba el número de control entre paréntesis
         html_bloque += "<tr>"
         html_bloque += '<td class="td-equipos">'
-        html_bloque += f'<div class="eq-local">{loc_abbr} <span class="casilla-inline">({p["casilla"]})</span></div>'
+        html_bloque += f'<div class="eq-local">{loc_abbr}</div>'
         html_bloque += f'<div class="eq-visita">{vis_abbr}</div>'
         html_bloque += '</td>'
         html_bloque += f'<td class="td-marc">{marc_html}{est_badge}</td>'
@@ -260,15 +257,15 @@ rows_normal_html = construir_bloque_filas(partidos_normal)
 
 totales_normal_cells = ""
 for ci in carton_ids:
-    ac, ter = aciertos_normal.get(ci, (0, 0))
-    totales_normal_cells += f'<td class="td-total style-n">{ac}/{ter}</td>'
+    ac = aciertos_normal.get(ci, 0)
+    totales_normal_cells += f'<td class="td-total style-n">{ac}</td>' # Imprime solo el número limpio
 
 rows_revancha_html = construir_bloque_filas(partidos_revancha)
 
 totales_revancha_cells = ""
 for ci in carton_ids:
-    ac, ter = aciertos_revancha.get(ci, (0, 0))
-    totales_revancha_cells += f'<td class="td-total style-r">{ac}/{ter}</td>'
+    ac = aciertos_revancha.get(ci, 0)
+    totales_revancha_cells += f'<td class="td-total style-r">{ac}</td>' # Imprime solo el número limpio
 
 # ============================================================
 # ESTILOS DE LA TABLA (CSS NATIVO)
@@ -294,7 +291,6 @@ st.markdown("""
 
 .td-equipos  { text-align:left; }
 .eq-local    { color:#e2e8f0; font-weight:600; font-size:12px; }
-.casilla-inline { color: #fbbf24; font-size: 10px; font-family: monospace; margin-left: 4px; }
 .eq-visita   { color:#94a3b8; font-size:11px; margin-top:2px; }
 
 .marc-ft     { color:#22c55e; font-weight:700; font-size:15px; }
@@ -330,7 +326,6 @@ st.markdown("""
 # ============================================================
 # RENDERIZADO DEL HTML DE LA TABLA
 # ============================================================
-# Ajustamos los colspans ya que ahora hay una columna menos (removida la columna de casilla 'Q')
 total_colspan_sin_q = 2 + num_cartones
 
 table_html = f"""
@@ -364,7 +359,8 @@ table_html = f"""
 
 st.markdown(table_html, unsafe_allow_html=True)
 
+# Temporizador para refresco fijo cada 1 hora (3600 segundos)
 if auto_refresh:
     import time
-    time.sleep(60)
+    time.sleep(3600)
     st.rerun()
