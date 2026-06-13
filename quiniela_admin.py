@@ -177,13 +177,40 @@ partidos_revancha = [p for p in partidos_mon if 15 <= p["casilla"] <= 21]
 aciertos_normal = {}
 aciertos_revancha = {}
 
+# Contadores globales para validar si los bloques ya terminaron al 100%
+total_terminados_normal = sum(1 for p in partidos_normal if p.get("resultado"))
+total_terminados_revancha = sum(1 for p in partidos_revancha if p.get("resultado"))
+
+bloque_normal_finalizado = (len(partidos_normal) > 0 and total_terminados_normal == len(partidos_normal))
+bloque_revancha_finalizado = (len(partidos_revancha) > 0 and total_terminados_revancha == len(partidos_revancha))
+
+cartones_premiados_normal = []
+cartones_premiados_revancha = []
+
 for ci in carton_ids:
     preds = {q["casilla"]: q["prediccion"] for q in quinielas_mon if q["numero_carton"] == ci}
+    
     ac_n = sum(1 for p in partidos_normal if p.get("resultado") and preds.get(p["casilla"]) == p["resultado"])
     aciertos_normal[ci] = ac_n
+    if bloque_normal_finalizado and ac_n >= 10:
+        cartones_premiados_normal.append((ci, ac_n))
     
     ac_r = sum(1 for p in partidos_revancha if p.get("resultado") and preds.get(p["casilla"]) == p["resultado"])
     aciertos_revancha[ci] = ac_r
+    if bloque_revancha_finalizado and ac_r >= 7:
+        cartones_premiados_revancha.append((ci, ac_r))
+
+# ============================================================
+# LÓGICA DE FELICITACIONES (POPUPS / TOASTS)
+# ============================================================
+if cartones_premiados_normal or cartones_premiados_revancha:
+    st.balloons()  # Despliega globos en la pantalla
+    
+    for ci, ac in cartones_premiados_normal:
+        st.success(f"🎉 ¡Felicidades! El Cartón **Q{ci}** finalizó con **{ac} aciertos** en el bloque principal (14 partidos).")
+        
+    for ci, ac in cartones_premiados_revancha:
+        st.success(f"🔥 ¡Espectacular! El Cartón **Q{ci}** logró **PASO PERFECTO ({ac}/{ac})** en el bloque de Revancha.")
 
 thead_ths = "".join([f'<th class="th-carton">Q{ci}</th>' for ci in carton_ids])
 
@@ -267,7 +294,7 @@ for ci in carton_ids:
     totales_revancha_cells += f'<td class="td-total style-r">{ac}</td>'
 
 # ============================================================
-# ESTILOS DE LA TABLA (CSS CON CABECERAS ALTAMENTE NOTABLES)
+# ESTILOS DE LA TABLA
 # ============================================================
 st.markdown("""
 <style>
@@ -285,12 +312,9 @@ st.markdown("""
 }
 .qtable th, .qtable td { padding: 10px 8px; text-align: center; border-bottom: 1px solid #1e2640; }
 
-/* MODIFICACIÓN: TÍTULOS CON MÁXIMO CONTRASTE Y EN NEGRITA */
 .th-equipos  { background:#111827; color:#cbd5e1; font-size:12px; font-weight:700; text-align:left; width:160px; letter-spacing: 0.5px; }
 .th-marc     { background:#111827; color:#cbd5e1; font-size:12px; font-weight:700; width:95px; min-width:95px; letter-spacing: 0.5px; }
 .td-marc     { background:#111827; width:95px; min-width:95px; }
-
-/* MODIFICACIÓN: COLUMNAS Q DESTACADAS CON FONDO PROPUESTO Y COLOR BLANCO BRILLANTE */
 .th-carton   { background:#1f2937; color:#ffffff; font-size:14px; font-weight:700; min-width:45px; border-bottom: 2px solid #374151; }
 
 .td-equipos  { text-align:left; }
