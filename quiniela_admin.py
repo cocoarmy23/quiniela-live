@@ -267,7 +267,7 @@ for ci in carton_ids:
     totales_revancha_cells += f'<td class="td-total style-r">{ac}</td>'
 
 # ============================================================
-# ESTILOS DE LA TABLA (CSS CON MEJORAS CRUCIALES PARA MÓVIL)
+# ESTILOS DE LA TABLA (CSS CON CABECERAS ALTAMENTE NOTABLES)
 # ============================================================
 st.markdown("""
 <style>
@@ -284,11 +284,14 @@ st.markdown("""
     font-family: 'Inter', sans-serif; font-size: 13px;
 }
 .qtable th, .qtable td { padding: 10px 8px; text-align: center; border-bottom: 1px solid #1e2640; }
-.th-equipos  { background:#111827; color:#4b5680; font-size:11px; text-align:left; width:160px; }
 
-/* EVITA QUE EL CELULAR RESCOJA ESTA COLUMNA */
-.th-marc, .td-marc { background:#111827; color:#4b5680; font-size:11px; width:95px; min-width:95px; }
-.th-carton   { background:#111827; color:#94a3b8; font-size:12px; font-weight:700; min-width:45px; }
+/* MODIFICACIÓN: TÍTULOS CON MÁXIMO CONTRASTE Y EN NEGRITA */
+.th-equipos  { background:#111827; color:#cbd5e1; font-size:12px; font-weight:700; text-align:left; width:160px; letter-spacing: 0.5px; }
+.th-marc     { background:#111827; color:#cbd5e1; font-size:12px; font-weight:700; width:95px; min-width:95px; letter-spacing: 0.5px; }
+.td-marc     { background:#111827; width:95px; min-width:95px; }
+
+/* MODIFICACIÓN: COLUMNAS Q DESTACADAS CON FONDO PROPUESTO Y COLOR BLANCO BRILLANTE */
+.th-carton   { background:#1f2937; color:#ffffff; font-size:14px; font-weight:700; min-width:45px; border-bottom: 2px solid #374151; }
 
 .td-equipos  { text-align:left; }
 .eq-local    { color:#e2e8f0; font-weight:600; font-size:12px; }
@@ -300,7 +303,6 @@ st.markdown("""
 .badge-ft    { display:block; font-size:10px; color:#22c55e; font-weight: 600; }
 .badge-live  { display:block; font-size:10px; color:#ef4444; font-weight: 600; animation: blink 1s infinite; }
 
-/* HORA Y FECHA AGRESIVOS PARA PANTALLAS CHICAS */
 .badge-ns    { display:block; font-size:15px; color:#cbd5e1; font-weight: 700; line-height: 1.3; margin-top: 2px; }
 .date-subtext { font-size: 12px; color: #818cf8; font-weight: 600; margin-top: 3px; }
 
