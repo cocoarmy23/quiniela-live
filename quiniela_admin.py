@@ -71,8 +71,11 @@ def get_espn_scores(slug: str) -> dict:
         away  = next((t for t in teams if t.get("homeAway") == "away"), {})
         stype     = event.get("status", {}).get("type", {})
         state     = stype.get("state", "pre")
-        detail    = event.get("status", {}).get("displayClock", "")
+        
+        # ALMACENAMOS EL TEXTO DEL MINUTO O TIEMPO EN CURSO DESDE ESPN
+        detail    = event.get("status", {}).get("type", {}).get("detail", "") or event.get("status", {}).get("displayClock", "")
         completed = stype.get("completed", False)
+        
         result[eid] = {
             "g_home":    home.get("score"),
             "g_away":    away.get("score"),
@@ -139,9 +142,9 @@ partidos_mon  = cargar_partidos(jid_mon)
 quinielas_mon = cargar_quinielas(jid_mon)
 
 # Sincronización automática con ESPN
+scores_vivo = {}
 if btn_refresh or auto_refresh:
     slugs_mon = set(p.get("league_slug","") for p in partidos_mon if p.get("league_slug") and p.get("fixture_id"))
-    scores_vivo = {}
     for slug in slugs_mon:
         get_espn_scores.clear()
         scores_vivo[slug] = get_espn_scores(slug)
@@ -200,15 +203,11 @@ for ci in carton_ids:
     if bloque_revancha_finalizado and ac_r >= 7:
         cartones_premiados_revancha.append((ci, ac_r))
 
-# ============================================================
-# LÓGICA DE FELICITACIONES (POPUPS / TOASTS)
-# ============================================================
+# Lógica de felicitaciones
 if cartones_premiados_normal or cartones_premiados_revancha:
-    st.balloons()  # Despliega globos en la pantalla
-    
+    st.balloons()
     for ci, ac in cartones_premiados_normal:
         st.success(f"🎉 ¡Felicidades! El Cartón **Q{ci}** finalizó con **{ac} aciertos** en el bloque principal (14 partidos).")
-        
     for ci, ac in cartones_premiados_revancha:
         st.success(f"🔥 ¡Espectacular! El Cartón **Q{ci}** logró **PASO PERFECTO ({ac}/{ac})** en el bloque de Revancha.")
 
@@ -222,6 +221,11 @@ def construir_bloque_filas(lista_partidos):
         estado   = p.get("estado", "NS")
         resultado = p.get("resultado")
 
+        # Recuperamos el minuto en vivo desde nuestra consulta a la API de ESPN hecha arriba
+        minuto_actual = ""
+        if p.get("fixture_id") and p.get("league_slug"):
+            minuto_actual = scores_vivo.get(p["league_slug"], {}).get(str(p["fixture_id"]), {}).get("detail", "")
+
         if g_h is not None and g_a is not None:
             marcador = f"{g_h}·{g_a}"
             marc_html = f'<span class="marc-ft">{marcador}</span>' if estado == "FT" else f'<span class="marc-live">{marcador}</span>'
@@ -231,7 +235,9 @@ def construir_bloque_filas(lista_partidos):
         if estado == "FT":
             est_badge = '<span class="badge-ft">FT</span>'
         elif estado == "LIVE":
-            est_badge = '<span class="badge-live">● LIVE</span>'
+            # SE AGREGA EL MINUTO DE JUEGO DINÁMICO ABAJO DEL BADGE DE 'LIVE'
+            texto_minuto = f'<div class="live-minute">{minuto_actual}</div>' if minuto_actual else ''
+            est_badge = f'<span class="badge-live">● LIVE</span>{texto_minuto}'
         else:
             hora = (p.get("hora","") or "")[:5]
             dia  = p.get("dia","") or ""
@@ -294,7 +300,7 @@ for ci in carton_ids:
     totales_revancha_cells += f'<td class="td-total style-r">{ac}</td>'
 
 # ============================================================
-# ESTILOS DE LA TABLA
+# ESTILOS DE LA TABLA (CSS CON MINUTO EN VIVO INCLUIDO)
 # ============================================================
 st.markdown("""
 <style>
@@ -314,7 +320,7 @@ st.markdown("""
 
 .th-equipos  { background:#111827; color:#cbd5e1; font-size:12px; font-weight:700; text-align:left; width:160px; letter-spacing: 0.5px; }
 .th-marc     { background:#111827; color:#cbd5e1; font-size:12px; font-weight:700; width:95px; min-width:95px; letter-spacing: 0.5px; }
-.td-marc     { background:#111827; width:95px; min-width:95px; }
+.td-marc     { background:#111827; width:95px; min-width:95px; vertical-align: middle; }
 .th-carton   { background:#1f2937; color:#ffffff; font-size:14px; font-weight:700; min-width:45px; border-bottom: 2px solid #374151; }
 
 .td-equipos  { text-align:left; }
@@ -322,15 +328,18 @@ st.markdown("""
 .eq-visita   { color:#94a3b8; font-size:11px; margin-top:2px; }
 
 .marc-ft     { color:#22c55e; font-weight:700; font-size:15px; }
-.marc-live   { color:#ef4444; font-weight:700; font-size:15px; }
+.marc-live   { color:#ef4444; font-weight:700; font-size:15px; display:block; margin-bottom: 1px; }
 .marc-ns     { color:#334155; font-size:15px; }
 .badge-ft    { display:block; font-size:10px; color:#22c55e; font-weight: 600; }
 .badge-live  { display:block; font-size:10px; color:#ef4444; font-weight: 600; animation: blink 1s infinite; }
 
+/* NUEVO ESTILO: MINUTO EN VIVO VISIBLE EN MÓVILES */
+.live-minute { display:block; font-size:12px; color:#fca5a5; font-weight:700; margin-top:2px; font-family: 'JetBrains Mono', monospace; animation: blink 1.5s infinite; }
+
 .badge-ns    { display:block; font-size:15px; color:#cbd5e1; font-weight: 700; line-height: 1.3; margin-top: 2px; }
 .date-subtext { font-size: 12px; color: #818cf8; font-weight: 600; margin-top: 3px; }
 
-@keyframes blink { 50%{ opacity:0.3; } }
+@keyframes blink { 50%{ opacity:0.4; } }
 
 .pred-cell   { font-weight:700; font-size:13px; }
 .cell-ok     { background:#14532d; color:#4ade80; }
