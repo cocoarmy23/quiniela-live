@@ -18,11 +18,23 @@ ESPN_BASE = "https://site.api.espn.com/apis/site/v2/sports/soccer"
 st.set_page_config(page_title="Monitor de Quinielas", layout="wide", page_icon="⚽")
 
 # ============================================================
-# ESTILOS GENERALES DE STREAMLIT
+# ESTILOS GENERALES Y CONFIGURACIÓN DE COLOR DE FONDO
 # ============================================================
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@500&display=swap');
+
+/* CAMBIAR EL FONDO DE LA APP A AZUL MARINO OSCURO */
+.stApp {
+    background-color: #060d21 !important;
+}
+
+/* REDUCIR EL ESPACIO EXCESIVO DEL ENCABEZADO SUPERIOR */
+.main .block-container {
+    padding-top: 1.2rem !important;
+    padding-bottom: 2rem !important;
+}
+
 html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
 .metric-box  { background: #11172a; border: 1px solid #1e2640; border-radius: 10px; padding: 16px; text-align: center; }
 .metric-num  { font-size: 32px; font-weight: 700; color: #e2e8f0; }
@@ -72,16 +84,18 @@ def get_espn_scores(slug: str) -> dict:
         stype     = event.get("status", {}).get("type", {})
         state     = stype.get("state", "pre")
         
-        # ALMACENAMOS EL TEXTO DEL MINUTO O TIEMPO EN CURSO DESDE ESPN
         detail    = event.get("status", {}).get("type", {}).get("detail", "") or event.get("status", {}).get("displayClock", "")
         completed = stype.get("completed", False)
         
+        # JALAMOS LOS ENLACES DE LOS ESCUDOS DESDE EL PAYLOAD DE ESPN
         result[eid] = {
             "g_home":    home.get("score"),
             "g_away":    away.get("score"),
             "state":     state,
             "detail":    detail,
             "completed": completed,
+            "logo_home": home.get("team", {}).get("logo", ""),
+            "logo_away": away.get("team", {}).get("logo", ""),
         }
     return result
 
@@ -123,16 +137,21 @@ def actualizar_resultado_db(partido_id: int, goles_l, goles_v, estado: str, resu
 # ============================================================
 # APP PRINCIPAL (MONITOR EN VIVO)
 # ============================================================
-st.title("⚽ Monitor de Quinielas en Vivo")
-
 jornadas = cargar_jornadas()
 if not jornadas:
     st.info("No hay jornadas activas disponibles en este momento.")
     st.stop()
 
-opts3 = {j["nombre"]: j["id"] for j in jornadas}
-sel3  = st.selectbox("Selecciona la Jornada", list(opts3.keys()), key="sel_monitor")
-jid_mon = opts3[sel3]
+# SE ELIMINÓ EL SELECTBOX. SE SELECCIONA AUTOMÁTICAMENTE LA JORNADA ACTIVA
+jid_mon = jornadas[0]["id"]
+
+# ENCABEZADO COMPACTO DE ACUERDO A TU DISEÑO SOLICITADO
+st.markdown("""
+<div style="text-align: center; margin-bottom: 20px;">
+    <h1 style="color: #ffffff; margin: 0; font-size: 34px; font-weight: 800; letter-spacing: 1px;">RESULTADOS PROGOL</h1>
+    <div style="color: #60a5fa; font-size: 15px; font-weight: 600; margin-top: -2px; text-transform: uppercase; letter-spacing: 2px;">En vivo</div>
+</div>
+""", unsafe_allow_html=True)
 
 col_btn1, col_btn2 = st.columns([1, 2])
 btn_refresh  = col_btn1.button("🔄 Actualizar marcadores")
@@ -141,14 +160,15 @@ auto_refresh = col_btn2.toggle("⏱ Auto-refrescar cada 1 hora", value=True)
 partidos_mon  = cargar_partidos(jid_mon)
 quinielas_mon = cargar_quinielas(jid_mon)
 
-# Sincronización automática con ESPN
+# Carga y almacenamiento continuo de marcadores y logos en vivo
+slugs_mon = set(p.get("league_slug","") for p in partidos_mon if p.get("league_slug") and p.get("fixture_id"))
 scores_vivo = {}
-if btn_refresh or auto_refresh:
-    slugs_mon = set(p.get("league_slug","") for p in partidos_mon if p.get("league_slug") and p.get("fixture_id"))
-    for slug in slugs_mon:
+for slug in slugs_mon:
+    if btn_refresh:
         get_espn_scores.clear()
-        scores_vivo[slug] = get_espn_scores(slug)
+    scores_vivo[slug] = get_espn_scores(slug)
 
+if btn_refresh or auto_refresh:
     for p in partidos_mon:
         if not p.get("fixture_id") or not p.get("league_slug"):
             continue
@@ -169,19 +189,17 @@ if not partidos_mon:
     st.info("Esta jornada aún no cuenta con partidos programados.")
     st.stop()
 
-# --- CORRECCIÓN DE COLUMNAS (Mapeo dinámico Q1 a Q16) ---
+# Reorganización y alineación dinámica Q1 a Q16
 carton_ids = sorted(list(set(q["numero_carton"] for q in quinielas_mon)))
 num_cartones = len(carton_ids)
 preds_map = {(q["casilla"], q["numero_carton"]): q["prediccion"] for q in quinielas_mon}
 
-# Filtrado de casillas para Progol y Revancha
 partidos_normal   = [p for p in partidos_mon if p["casilla"] <= 14]
 partidos_revancha = [p for p in partidos_mon if 15 <= p["casilla"] <= 21]
 
 aciertos_normal = {}
 aciertos_revancha = {}
 
-# Contadores globales para validar si los bloques ya terminaron al 100%
 total_terminados_normal = sum(1 for p in partidos_normal if p.get("resultado"))
 total_terminados_revancha = sum(1 for p in partidos_revancha if p.get("resultado"))
 
@@ -204,7 +222,6 @@ for ci in carton_ids:
     if bloque_revancha_finalizado and ac_r >= 7:
         cartones_premiados_revancha.append((ci, ac_r))
 
-# Lógica de felicitaciones ordenada con el nuevo índice consecutivo
 if cartones_premiados_normal or cartones_premiados_revancha:
     st.balloons()
     for ci, ac in cartones_premiados_normal:
@@ -214,7 +231,6 @@ if cartones_premiados_normal or cartones_premiados_revancha:
         q_num = carton_ids.index(ci) + 1
         st.success(f"🔥 ¡Espectacular! El Cartón **Q{q_num}** logró **PASO PERFECTO ({ac}/{ac})** en el bloque de Revancha.")
 
-# Renderizamos los encabezados asegurando que siempre vayan del Q1 al Q16
 thead_ths = "".join([f'<th class="th-carton">Q{i+1}</th>' for i in range(len(carton_ids))])
 
 def construir_bloque_filas(lista_partidos):
@@ -225,10 +241,16 @@ def construir_bloque_filas(lista_partidos):
         estado   = p.get("estado", "NS")
         resultado = p.get("resultado")
 
-        # Recuperamos el minuto en vivo desde nuestra consulta a la API de ESPN hecha arriba
         minuto_actual = ""
+        logo_h = ""
+        logo_a = ""
+        
+        # OBTENER LOS LOGOS DEL DICCIONARIO DE ESPN SI ESTÁN DISPONIBLES
         if p.get("fixture_id") and p.get("league_slug"):
-            minuto_actual = scores_vivo.get(p["league_slug"], {}).get(str(p["fixture_id"]), {}).get("detail", "")
+            info_partido = scores_vivo.get(p["league_slug"], {}).get(str(p["fixture_id"]), {})
+            minuto_actual = info_partido.get("detail", "")
+            logo_h = info_partido.get("logo_home", "")
+            logo_a = info_partido.get("logo_away", "")
 
         if g_h is not None and g_a is not None:
             marcador = f"{g_h}·{g_a}"
@@ -239,7 +261,6 @@ def construir_bloque_filas(lista_partidos):
         if estado == "FT":
             est_badge = '<span class="badge-ft">FT</span>'
         elif estado == "LIVE":
-            # SE AGREGA EL MINUTO DE JUEGO DINÁMICO ABAJO DEL BADGE DE 'LIVE'
             texto_minuto = f'<div class="live-minute">{minuto_actual}</div>' if minuto_actual else ''
             est_badge = f'<span class="badge-live">● LIVE</span>{texto_minuto}'
         else:
@@ -249,6 +270,10 @@ def construir_bloque_filas(lista_partidos):
 
         loc_abbr = p["local_nombre"][:12].upper()
         vis_abbr = p["visita_nombre"][:12].upper()
+
+        # RENDERIZADO CONDICIONAL DE IMÁGENES DE LOS ESCUDOS
+        img_h_html = f'<img class="team-logo" src="{logo_h}">' if logo_h else ''
+        img_a_html = f'<img class="team-logo" src="{logo_a}">' if logo_a else ''
 
         pred_cells = ""
         for ci in carton_ids:
@@ -280,8 +305,8 @@ def construir_bloque_filas(lista_partidos):
 
         html_bloque += "<tr>"
         html_bloque += '<td class="td-equipos">'
-        html_bloque += f'<div class="eq-local">{loc_abbr}</div>'
-        html_bloque += f'<div class="eq-visita">{vis_abbr}</div>'
+        html_bloque += f'<div class="eq-local">{img_h_html}{loc_abbr}</div>'
+        html_bloque += f'<div class="eq-visita">{img_a_html}{vis_abbr}</div>'
         html_bloque += '</td>'
         html_bloque += f'<td class="td-marc">{marc_html}{est_badge}</td>'
         html_bloque += pred_cells
@@ -304,7 +329,7 @@ for ci in carton_ids:
     totales_revancha_cells += f'<td class="td-total style-r">{ac}</td>'
 
 # ============================================================
-# ESTILOS DE LA TABLA (CSS CON COLORES CORREGIDOS)
+# ESTILOS DE LA TABLA (CSS ACTUALIZADO)
 # ============================================================
 st.markdown("""
 <style>
@@ -322,14 +347,17 @@ st.markdown("""
 }
 .qtable th, .qtable td { padding: 10px 8px; text-align: center; border-bottom: 1px solid #1e2640; }
 
-.th-equipos  { background:#111827; color:#cbd5e1; font-size:12px; font-weight:700; text-align:left; width:160px; letter-spacing: 0.5px; }
+.th-equipos  { background:#111827; color:#cbd5e1; font-size:12px; font-weight:700; text-align:left; width:180px; letter-spacing: 0.5px; }
 .th-marc     { background:#111827; color:#cbd5e1; font-size:12px; font-weight:700; width:95px; min-width:95px; letter-spacing: 0.5px; }
 .td-marc     { background:#111827; width:95px; min-width:95px; vertical-align: middle; }
 .th-carton   { background:#1f2937; color:#ffffff; font-size:14px; font-weight:700; min-width:45px; border-bottom: 2px solid #374151; }
 
 .td-equipos  { text-align:left; }
-.eq-local    { color:#e2e8f0; font-weight:600; font-size:12px; }
-.eq-visita   { color:#94a3b8; font-size:11px; margin-top:2px; }
+
+/* NUEVO ENFOQUE FLEXBOX PARA ALINEAR CORRECTAMENTE LOS ESCUDOS CON EL TEXTO */
+.eq-local    { color:#e2e8f0; font-weight:600; font-size:12px; display: flex; align-items: center; gap: 6px; }
+.eq-visita   { color:#94a3b8; font-size:11px; margin-top:5px; display: flex; align-items: center; gap: 6px; }
+.team-logo   { width: 18px; height: 18px; object-fit: contain; }
 
 .marc-ft     { color:#22c55e; font-weight:700; font-size:15px; }
 .marc-live   { color:#ef4444; font-weight:700; font-size:15px; display:block; margin-bottom: 1px; }
@@ -348,13 +376,13 @@ st.markdown("""
 .cell-ok     { background:#14532d; color:#4ade80; }
 .cell-fail   { background:#1a1a1a; color:#334155; }
 
-/* REGRESADO A SU AZUL ORIGINAL */
+/* REVERTIDO AL AZUL ORIGINAL DE L DEGRADADO */
 .cell-L      { background:#1e3a5f; color:#60a5fa; }
 
-/* MANTENIDO EL ESTILO DE E */
+/* COLOR DE E DEGRADADO ORIGINAL MANTENIDO */
 .cell-E      { background:#3d2e00; color:#fbbf24; }
 
-/* NUEVO MORADO OSCURO DEGRADADO (Mismo formato que L y E) */
+/* NUEVO MORADO OSCURO DEGRADADO PARA LAS CELDAS CON V */
 .cell-V      { background:#2e1b4e; color:#c084fc; }
 
 .cell-empty  { color:#334155; }
@@ -407,7 +435,6 @@ table_html = f"""
 
 st.markdown(table_html, unsafe_allow_html=True)
 
-# Temporizador para refresco fijo cada 1 hora (3600 segundos)
 if auto_refresh:
     import time
     time.sleep(3600)
