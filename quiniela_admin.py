@@ -23,10 +23,35 @@ st.set_page_config(page_title="Monitor de Quinielas", layout="wide", page_icon="
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@500&display=swap');
-html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
+html, body, [class*="css"] { font-family: 'Inter', sans-serif; background-color: #0d1117 !important; color: #e2e8f0 !important; }
 .metric-box  { background: #11172a; border: 1px solid #1e2640; border-radius: 10px; padding: 16px; text-align: center; }
 .metric-num  { font-size: 32px; font-weight: 700; color: #e2e8f0; }
 .metric-lbl  { font-size: 11px; color: #4b5680; text-transform: uppercase; letter-spacing: 1px; }
+
+/* Fondo general azul oscuro */
+.stApp { background-color: #0d1117 !important; }
+section[data-testid="stMain"] > div { background-color: #0d1117 !important; }
+
+/* Botón Actualizar marcadores - estilo oscuro */
+div.stButton > button {
+    background-color: #1e2640 !important;
+    color: #e2e8f0 !important;
+    border: 1px solid #374151 !important;
+    border-radius: 8px !important;
+    font-weight: 600 !important;
+    font-size: 13px !important;
+    padding: 8px 18px !important;
+    transition: background 0.2s;
+}
+div.stButton > button:hover {
+    background-color: #2d3a57 !important;
+    border-color: #4b5680 !important;
+}
+
+/* Toggle label color claro */
+div[data-testid="stToggle"] label,
+div[data-testid="stToggle"] p,
+.stToggle label { color: #cbd5e1 !important; font-size: 13px !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -133,11 +158,10 @@ if not jornadas:
     st.stop()
 
 opts3 = {j["nombre"]: j["id"] for j in jornadas}
-sel3  = st.selectbox("Selecciona la Jornada", list(opts3.keys()), key="sel_monitor")
-jid_mon = opts3[sel3]
+jid_mon = jornadas[0]["id"]  # Usar automáticamente la jornada activa más reciente
 
 col_btn1, col_btn2 = st.columns([1, 2])
-btn_refresh  = col_btn1.button("🔄 Actualizar marcadores")
+btn_refresh  = col_btn1.button("Actualizar marcadores")
 auto_refresh = col_btn2.toggle("⏱ Auto-refrescar cada 1 hora", value=True)
 
 partidos_mon  = cargar_partidos(jid_mon)
@@ -173,7 +197,12 @@ if not partidos_mon:
 
 num_cartones = max((q["numero_carton"] for q in quinielas_mon), default=0)
 preds_map = {(q["casilla"], q["numero_carton"]): q["prediccion"] for q in quinielas_mon}
-carton_ids = list(range(1, num_cartones + 1))
+
+# Filtrar solo cartones que tienen al menos una predicción (eliminar columnas vacías)
+carton_ids_raw = sorted(set(q["numero_carton"] for q in quinielas_mon if q.get("prediccion")))
+# Reasignar numeración consecutiva Q1, Q2, Q3... (carton_display_map: carton_real -> numero_visual)
+carton_display_map = {c: i+1 for i, c in enumerate(carton_ids_raw)}
+carton_ids = carton_ids_raw  # iterar sobre ids reales, mostrar con display_map
 
 # Filtrado de casillas para Progol y Revancha
 partidos_normal   = [p for p in partidos_mon if p["casilla"] <= 14]
@@ -213,7 +242,7 @@ if cartones_premiados_normal or cartones_premiados_revancha:
     for ci, ac in cartones_premiados_revancha:
         st.success(f"🔥 ¡Espectacular! El Cartón **Q{ci}** logró **PASO PERFECTO ({ac}/{ac})** en el bloque de Revancha.")
 
-thead_ths = "".join([f'<th class="th-carton">Q{ci}</th>' for ci in carton_ids])
+thead_ths = "".join([f'<th class="th-carton">Q{carton_display_map[ci]}</th>' for ci in carton_ids])
 
 def construir_bloque_filas(lista_partidos):
     html_bloque = ""
@@ -359,7 +388,7 @@ st.markdown("""
 .cell-fail   { background:#1a1a1a; color:#334155; }
 .cell-L      { background:#1e3a5f; color:#60a5fa; }
 .cell-E      { background:#3d2e00; color:#fbbf24; }
-.cell-V      { background:#14291e; color:#4ade80; }
+.cell-V      { background:#2e1a4a; color:#c084fc; }
 .cell-empty  { color:#334155; }
 
 .row-revancha-header {
