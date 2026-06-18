@@ -47,9 +47,6 @@ div.stButton > button:hover {
     background-color: #2d3a57 !important;
     border-color: #4b5680 !important;
 }
-
-/* Botón toggle de auto-refresh heredará el estilo del botón oscuro general */
-
 </style>
 """, unsafe_allow_html=True)
 
@@ -95,7 +92,6 @@ def get_espn_scores(slug: str) -> dict:
         stype     = event.get("status", {}).get("type", {})
         state     = stype.get("state", "pre")
         
-        # ALMACENAMOS EL TEXTO DEL MINUTO O TIEMPO EN CURSO DESDE ESPN
         detail    = event.get("status", {}).get("type", {}).get("detail", "") or event.get("status", {}).get("displayClock", "")
         completed = stype.get("completed", False)
         
@@ -161,12 +157,11 @@ if not jornadas:
     st.stop()
 
 opts3 = {j["nombre"]: j["id"] for j in jornadas}
-jid_mon = jornadas[0]["id"]  # Usar automáticamente la jornada activa más reciente
+jid_mon = jornadas[0]["id"]
 
 col_btn1, col_btn2 = st.columns([1, 2])
 btn_refresh = col_btn1.button("Actualizar marcadores")
 
-# Toggle manual con session_state para controlar el color correctamente
 if "auto_refresh" not in st.session_state:
     st.session_state.auto_refresh = True
 
@@ -189,16 +184,14 @@ auto_refresh = st.session_state.auto_refresh
 partidos_mon  = cargar_partidos(jid_mon)
 quinielas_mon = cargar_quinielas(jid_mon)
 
-# ── Logos: siempre se obtienen (con caché) para que se vean aunque auto_refresh esté apagado
 scores_vivo = {}
 slugs_mon = set(p.get("league_slug","") for p in partidos_mon if p.get("league_slug") and p.get("fixture_id"))
 for slug in slugs_mon:
-    scores_vivo[slug] = get_espn_scores(slug)   # usa caché, no limpia
+    scores_vivo[slug] = get_espn_scores(slug)
 
-# ── Sincronización completa (actualiza BD) solo si el usuario pidió refresh
 if btn_refresh or auto_refresh:
     for slug in slugs_mon:
-        get_espn_scores.clear()                  # limpia caché para datos frescos
+        get_espn_scores.clear()
         scores_vivo[slug] = get_espn_scores(slug)
 
     for p in partidos_mon:
@@ -224,20 +217,16 @@ if not partidos_mon:
 num_cartones = max((q["numero_carton"] for q in quinielas_mon), default=0)
 preds_map = {(q["casilla"], q["numero_carton"]): q["prediccion"] for q in quinielas_mon}
 
-# Filtrar solo cartones que tienen al menos una predicción (eliminar columnas vacías)
 carton_ids_raw = sorted(set(q["numero_carton"] for q in quinielas_mon if q.get("prediccion")))
-# Reasignar numeración consecutiva Q1, Q2, Q3... (carton_display_map: carton_real -> numero_visual)
 carton_display_map = {c: i+1 for i, c in enumerate(carton_ids_raw)}
-carton_ids = carton_ids_raw  # iterar sobre ids reales, mostrar con display_map
+carton_ids = carton_ids_raw
 
-# Filtrado de casillas para Progol y Revancha
 partidos_normal   = [p for p in partidos_mon if p["casilla"] <= 14]
 partidos_revancha = [p for p in partidos_mon if 15 <= p["casilla"] <= 21]
 
 aciertos_normal = {}
 aciertos_revancha = {}
 
-# Contadores globales para validar si los bloques ya terminaron al 100%
 total_terminados_normal = sum(1 for p in partidos_normal if p.get("resultado"))
 total_terminados_revancha = sum(1 for p in partidos_revancha if p.get("resultado"))
 
@@ -260,7 +249,6 @@ for ci in carton_ids:
     if bloque_revancha_finalizado and ac_r >= 7:
         cartones_premiados_revancha.append((ci, ac_r))
 
-# Lógica de felicitaciones
 if cartones_premiados_normal or cartones_premiados_revancha:
     st.balloons()
     for ci, ac in cartones_premiados_normal:
@@ -270,6 +258,9 @@ if cartones_premiados_normal or cartones_premiados_revancha:
 
 thead_ths = "".join([f'<th class="th-carton">Q{carton_display_map[ci]}</th>' for ci in carton_ids])
 
+# ============================================================
+# LÓGICA DE FILAS DE LA TABLA (CORREGIDA)
+# ============================================================
 def construir_bloque_filas(lista_partidos):
     html_bloque = ""
     for p in lista_partidos:
@@ -278,7 +269,6 @@ def construir_bloque_filas(lista_partidos):
         estado   = p.get("estado", "NS")
         resultado = p.get("resultado")
 
-        # Recuperamos el minuto en vivo y logos desde nuestra consulta a la API de ESPN hecha arriba
         minuto_actual = ""
         logo_home = ""
         logo_away = ""
@@ -288,16 +278,21 @@ def construir_bloque_filas(lista_partidos):
             logo_home     = info_vivo.get("logo_home", "")
             logo_away     = info_vivo.get("logo_away", "")
 
+        # Filtro estricto según el estado del partido
         if g_h is not None and g_a is not None:
             marcador = f"{g_h}·{g_a}"
-            marc_html = f'<span class="marc-ft">{marcador}</span>' if estado == "FT" else f'<span class="marc-live">{marcador}</span>'
+            if estado == "FT":
+                marc_html = f'<span class="marc-ft">{marcador}</span>'
+            elif estado == "LIVE":
+                marc_html = f'<span class="marc-live">{marcador}</span>'
+            else:  # Para los "NS" que guardan 0·0 en la BD por defecto
+                marc_html = f'<span class="marc-ns">{marcador}</span>'
         else:
             marc_html = '<span class="marc-ns">·</span>'
 
         if estado == "FT":
             est_badge = '<span class="badge-ft">FT</span>'
         elif estado == "LIVE":
-            # SE AGREGA EL MINUTO DE JUEGO DINÁMICO ABAJO DEL BADGE DE 'LIVE'
             texto_minuto = f'<div class="live-minute">{minuto_actual}</div>' if minuto_actual else ''
             est_badge = f'<span class="badge-live">● LIVE</span>{texto_minuto}'
         else:
@@ -368,7 +363,7 @@ for ci in carton_ids:
     totales_revancha_cells += f'<td class="td-total style-r">{ac}</td>'
 
 # ============================================================
-# ESTILOS DE LA TABLA (CSS CON COLORES DINÁMICOS SOLICITADOS)
+# ESTILOS DE LA TABLA (CSS - CONFIGURACIÓN DE COLORES)
 # ============================================================
 st.markdown("""
 <style>
@@ -478,7 +473,6 @@ table_html = f"""
 
 st.markdown(table_html, unsafe_allow_html=True)
 
-# Auto-refresco cada 15 minutos usando rerun con delay solo si está activo
 if auto_refresh:
     import time
     time.sleep(900)
