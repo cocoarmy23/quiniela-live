@@ -44,7 +44,7 @@ html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
 div[data-testid="stToggle"] label p, 
 div[data-testid="stToggle"] p, 
 .stToggle label p {
-    color: #f1f5f9 !important;
+    color: #ffffff !important;
     font-size: 14px !important;
     font-weight: 600 !important;
 }
