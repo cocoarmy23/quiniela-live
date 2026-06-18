@@ -48,14 +48,8 @@ div.stButton > button:hover {
     border-color: #4b5680 !important;
 }
 
-/* Toggle label color claro - forzado con múltiples selectores */
-div[data-testid="stToggle"] label,
-div[data-testid="stToggle"] label p,
-div[data-testid="stToggle"] label span,
-div[data-testid="stToggle"] > label,
-div[data-testid="stToggle"] p,
-div[data-testid="stToggle"] span:not([data-testid]),
-[data-testid="stToggle"] label { color: #94a3b8 !important; font-size: 13px !important; font-weight: 500 !important; }
+/* Botón toggle de auto-refresh heredará el estilo del botón oscuro general */
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -170,18 +164,41 @@ opts3 = {j["nombre"]: j["id"] for j in jornadas}
 jid_mon = jornadas[0]["id"]  # Usar automáticamente la jornada activa más reciente
 
 col_btn1, col_btn2 = st.columns([1, 2])
-btn_refresh  = col_btn1.button("Actualizar marcadores")
-auto_refresh = col_btn2.toggle("Auto-refrescar cada 15 minutos", value=True)
+btn_refresh = col_btn1.button("Actualizar marcadores")
+
+# Toggle manual con session_state para controlar el color correctamente
+if "auto_refresh" not in st.session_state:
+    st.session_state.auto_refresh = True
+
+with col_btn2:
+    toggle_label = "Auto-refrescar cada 15 min"
+    toggle_on = st.session_state.auto_refresh
+    toggle_color = "#22c55e" if toggle_on else "#4b5680"
+    toggle_icon  = "⏵" if toggle_on else "⏸"
+    if st.button(f"{toggle_icon}  {toggle_label}", key="btn_toggle"):
+        st.session_state.auto_refresh = not st.session_state.auto_refresh
+        st.rerun()
+    st.markdown(
+        f'<div style="font-size:11px; color:{toggle_color}; margin-top:-8px; padding-left:2px; font-weight:600;">'
+        f'{"ACTIVO" if toggle_on else "PAUSADO"}</div>',
+        unsafe_allow_html=True
+    )
+
+auto_refresh = st.session_state.auto_refresh
 
 partidos_mon  = cargar_partidos(jid_mon)
 quinielas_mon = cargar_quinielas(jid_mon)
 
-# Sincronización automática con ESPN
+# ── Logos: siempre se obtienen (con caché) para que se vean aunque auto_refresh esté apagado
 scores_vivo = {}
+slugs_mon = set(p.get("league_slug","") for p in partidos_mon if p.get("league_slug") and p.get("fixture_id"))
+for slug in slugs_mon:
+    scores_vivo[slug] = get_espn_scores(slug)   # usa caché, no limpia
+
+# ── Sincronización completa (actualiza BD) solo si el usuario pidió refresh
 if btn_refresh or auto_refresh:
-    slugs_mon = set(p.get("league_slug","") for p in partidos_mon if p.get("league_slug") and p.get("fixture_id"))
     for slug in slugs_mon:
-        get_espn_scores.clear()
+        get_espn_scores.clear()                  # limpia caché para datos frescos
         scores_vivo[slug] = get_espn_scores(slug)
 
     for p in partidos_mon:
@@ -459,7 +476,7 @@ table_html = f"""
 
 st.markdown(table_html, unsafe_allow_html=True)
 
-# Temporizador para refresco cada 15 minutos (900 segundos)
+# Auto-refresco cada 15 minutos usando rerun con delay solo si está activo
 if auto_refresh:
     import time
     time.sleep(900)
