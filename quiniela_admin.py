@@ -39,6 +39,31 @@ html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
 .metric-box  { background: #11172a; border: 1px solid #1e2640; border-radius: 10px; padding: 16px; text-align: center; }
 .metric-num  { font-size: 32px; font-weight: 700; color: #e2e8f0; }
 .metric-lbl  { font-size: 11px; color: #4b5680; text-transform: uppercase; letter-spacing: 1px; }
+
+/* LEYENDA DE AUTOREFRESCAR EN UN COLOR MÁS CLARO Y LEGIBLE */
+.stToggle label p {
+    color: #94a3b8 !important;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+/* BOTÓN DE ACTUALIZAR AHORA ESTILIZADO CON EL ESTILO OSCURO */
+div.stButton > button {
+    background-color: #11172a !important;
+    color: #cbd5e1 !important;
+    border: 1px solid #1e2640 !important;
+    border-radius: 8px !important;
+    padding: 6px 20px !important;
+    font-weight: 600 !important;
+    transition: all 0.25s ease-in-out;
+}
+
+div.stButton > button:hover {
+    background-color: #2563eb !important;
+    border-color: #3b82f6 !important;
+    color: #ffffff !important;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -142,7 +167,7 @@ if not jornadas:
     st.info("No hay jornadas activas disponibles en este momento.")
     st.stop()
 
-# SE ELIMINÓ EL SELECTBOX. SE SELECCIONA AUTOMÁTICAMENTE LA JORNADA ACTIVA
+# SE SELECCIONA AUTOMÁTICAMENTE LA JORNADA ACTIVA
 jid_mon = jornadas[0]["id"]
 
 # ENCABEZADO COMPACTO DE ACUERDO A TU DISEÑO SOLICITADO
@@ -153,9 +178,10 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
+# CONTROLES DE ACTUALIZACIÓN CON TEXTO LIMPIO Y ESTILOS MEJORADOS
 col_btn1, col_btn2 = st.columns([1, 2])
-btn_refresh  = col_btn1.button("🔄 Actualizar marcadores")
-auto_refresh = col_btn2.toggle("⏱ Auto-refrescar cada 1 hora", value=True)
+btn_refresh  = col_btn1.button("Actualizar ahora")
+auto_refresh = col_btn2.toggle("Auto-refrescar cada 1 hora", value=True)
 
 partidos_mon  = cargar_partidos(jid_mon)
 quinielas_mon = cargar_quinielas(jid_mon)
@@ -245,7 +271,6 @@ def construir_bloque_filas(lista_partidos):
         logo_h = ""
         logo_a = ""
         
-        # OBTENER LOS LOGOS DEL DICCIONARIO DE ESPN SI ESTÁN DISPONIBLES
         if p.get("fixture_id") and p.get("league_slug"):
             info_partido = scores_vivo.get(p["league_slug"], {}).get(str(p["fixture_id"]), {})
             minuto_actual = info_partido.get("detail", "")
@@ -271,7 +296,6 @@ def construir_bloque_filas(lista_partidos):
         loc_abbr = p["local_nombre"][:12].upper()
         vis_abbr = p["visita_nombre"][:12].upper()
 
-        # RENDERIZADO CONDICIONAL DE IMÁGENES DE LOS ESCUDOS
         img_h_html = f'<img class="team-logo" src="{logo_h}">' if logo_h else ''
         img_a_html = f'<img class="team-logo" src="{logo_a}">' if logo_a else ''
 
@@ -354,7 +378,6 @@ st.markdown("""
 
 .td-equipos  { text-align:left; }
 
-/* NUEVO ENFOQUE FLEXBOX PARA ALINEAR CORRECTAMENTE LOS ESCUDOS CON EL TEXTO */
 .eq-local    { color:#e2e8f0; font-weight:600; font-size:12px; display: flex; align-items: center; gap: 6px; }
 .eq-visita   { color:#94a3b8; font-size:11px; margin-top:5px; display: flex; align-items: center; gap: 6px; }
 .team-logo   { width: 18px; height: 18px; object-fit: contain; }
@@ -376,13 +399,8 @@ st.markdown("""
 .cell-ok     { background:#14532d; color:#4ade80; }
 .cell-fail   { background:#1a1a1a; color:#334155; }
 
-/* REVERTIDO AL AZUL ORIGINAL DE L DEGRADADO */
 .cell-L      { background:#1e3a5f; color:#60a5fa; }
-
-/* COLOR DE E DEGRADADO ORIGINAL MANTENIDO */
 .cell-E      { background:#3d2e00; color:#fbbf24; }
-
-/* NUEVO MORADO OSCURO DEGRADADO PARA LAS CELDAS CON V */
 .cell-V      { background:#2e1b4e; color:#c084fc; }
 
 .cell-empty  { color:#334155; }
