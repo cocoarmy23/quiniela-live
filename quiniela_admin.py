@@ -169,9 +169,7 @@ if not partidos_mon:
     st.info("Esta jornada aún no cuenta con partidos programados.")
     st.stop()
 
-# --- CORRECCIÓN DE DESFASE DE COLUMNAS ---
-# En lugar de hacer un rango desde 1 hasta el máximo (que dejaba vacíos si empezaba en otro número),
-# extraemos los números de cartón únicos y ordenados que realmente vienen en la base de datos.
+# --- CORRECCIÓN DE COLUMNAS (Mapeo dinámico Q1 a Q16) ---
 carton_ids = sorted(list(set(q["numero_carton"] for q in quinielas_mon)))
 num_cartones = len(carton_ids)
 preds_map = {(q["casilla"], q["numero_carton"]): q["prediccion"] for q in quinielas_mon}
@@ -206,15 +204,18 @@ for ci in carton_ids:
     if bloque_revancha_finalizado and ac_r >= 7:
         cartones_premiados_revancha.append((ci, ac_r))
 
-# Lógica de felicitaciones
+# Lógica de felicitaciones ordenada con el nuevo índice consecutivo
 if cartones_premiados_normal or cartones_premiados_revancha:
     st.balloons()
     for ci, ac in cartones_premiados_normal:
-        st.success(f"🎉 ¡Felicidades! El Cartón **Q{ci}** finalizó con **{ac} aciertos** en el bloque principal (14 partidos).")
+        q_num = carton_ids.index(ci) + 1
+        st.success(f"🎉 ¡Felicidades! El Cartón **Q{q_num}** finalizó con **{ac} aciertos** en el bloque principal (14 partidos).")
     for ci, ac in cartones_premiados_revancha:
-        st.success(f"🔥 ¡Espectacular! El Cartón **Q{ci}** logró **PASO PERFECTO ({ac}/{ac})** en el bloque de Revancha.")
+        q_num = carton_ids.index(ci) + 1
+        st.success(f"🔥 ¡Espectacular! El Cartón **Q{q_num}** logró **PASO PERFECTO ({ac}/{ac})** en el bloque de Revancha.")
 
-thead_ths = "".join([f'<th class="th-carton">Q{ci}</th>' for ci in carton_ids])
+# Renderizamos los encabezados asegurando que siempre vayan del Q1 al Q16
+thead_ths = "".join([f'<th class="th-carton">Q{i+1}</th>' for i in range(len(carton_ids))])
 
 def construir_bloque_filas(lista_partidos):
     html_bloque = ""
@@ -303,7 +304,7 @@ for ci in carton_ids:
     totales_revancha_cells += f'<td class="td-total style-r">{ac}</td>'
 
 # ============================================================
-# ESTILOS DE LA TABLA (CSS ACTUALIZADO)
+# ESTILOS DE LA TABLA (CSS CON COLORES CORREGIDOS)
 # ============================================================
 st.markdown("""
 <style>
@@ -336,7 +337,6 @@ st.markdown("""
 .badge-ft    { display:block; font-size:10px; color:#22c55e; font-weight: 600; }
 .badge-live  { display:block; font-size:10px; color:#ef4444; font-weight: 600; animation: blink 1s infinite; }
 
-/* NUEVO ESTILO: MINUTO EN VIVO VISIBLE EN MÓVILES */
 .live-minute { display:block; font-size:12px; color:#fca5a5; font-weight:700; margin-top:2px; font-family: 'JetBrains Mono', monospace; animation: blink 1.5s infinite; }
 
 .badge-ns    { display:block; font-size:15px; color:#cbd5e1; font-weight: 700; line-height: 1.3; margin-top: 2px; }
@@ -348,11 +348,15 @@ st.markdown("""
 .cell-ok     { background:#14532d; color:#4ade80; }
 .cell-fail   { background:#1a1a1a; color:#334155; }
 
-/* NUEVO COLOR PARA 'L': Púrpura intenso para desmarcarlo completamente del verde de los aciertos */
-.cell-L      { background:#5b21b6; color:#f5f3ff; }
+/* REGRESADO A SU AZUL ORIGINAL */
+.cell-L      { background:#1e3a5f; color:#60a5fa; }
 
+/* MANTENIDO EL ESTILO DE E */
 .cell-E      { background:#3d2e00; color:#fbbf24; }
-.cell-V      { background:#14291e; color:#4ade80; }
+
+/* NUEVO MORADO OSCURO DEGRADADO (Mismo formato que L y E) */
+.cell-V      { background:#2e1b4e; color:#c084fc; }
+
 .cell-empty  { color:#334155; }
 
 .row-revancha-header {
