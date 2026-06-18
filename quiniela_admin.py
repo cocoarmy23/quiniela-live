@@ -169,9 +169,12 @@ if not partidos_mon:
     st.info("Esta jornada aún no cuenta con partidos programados.")
     st.stop()
 
-num_cartones = max((q["numero_carton"] for q in quinielas_mon), default=0)
+# --- CORRECCIÓN DE DESFASE DE COLUMNAS ---
+# En lugar de hacer un rango desde 1 hasta el máximo (que dejaba vacíos si empezaba en otro número),
+# extraemos los números de cartón únicos y ordenados que realmente vienen en la base de datos.
+carton_ids = sorted(list(set(q["numero_carton"] for q in quinielas_mon)))
+num_cartones = len(carton_ids)
 preds_map = {(q["casilla"], q["numero_carton"]): q["prediccion"] for q in quinielas_mon}
-carton_ids = list(range(1, num_cartones + 1))
 
 # Filtrado de casillas para Progol y Revancha
 partidos_normal   = [p for p in partidos_mon if p["casilla"] <= 14]
@@ -300,7 +303,7 @@ for ci in carton_ids:
     totales_revancha_cells += f'<td class="td-total style-r">{ac}</td>'
 
 # ============================================================
-# ESTILOS DE LA TABLA (CSS CON MINUTO EN VIVO INCLUIDO)
+# ESTILOS DE LA TABLA (CSS ACTUALIZADO)
 # ============================================================
 st.markdown("""
 <style>
@@ -344,7 +347,10 @@ st.markdown("""
 .pred-cell   { font-weight:700; font-size:13px; }
 .cell-ok     { background:#14532d; color:#4ade80; }
 .cell-fail   { background:#1a1a1a; color:#334155; }
-.cell-L      { background:#1e3a5f; color:#60a5fa; }
+
+/* NUEVO COLOR PARA 'L': Púrpura intenso para desmarcarlo completamente del verde de los aciertos */
+.cell-L      { background:#5b21b6; color:#f5f3ff; }
+
 .cell-E      { background:#3d2e00; color:#fbbf24; }
 .cell-V      { background:#14291e; color:#4ade80; }
 .cell-empty  { color:#334155; }
