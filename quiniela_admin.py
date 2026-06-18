@@ -368,7 +368,7 @@ for ci in carton_ids:
     totales_revancha_cells += f'<td class="td-total style-r">{ac}</td>'
 
 # ============================================================
-# ESTILOS DE LA TABLA (CSS CON MINUTO EN VIVO INCLUIDO)
+# ESTILOS DE LA TABLA (CSS CON COLORES DINÁMICOS SOLICITADOS)
 # ============================================================
 st.markdown("""
 <style>
@@ -398,17 +398,19 @@ st.markdown("""
 .team-logo   { width:18px; height:18px; object-fit:contain; flex-shrink:0; }
 .logo-placeholder { display:inline-block; width:18px; height:18px; flex-shrink:0; }
 
+/* VERDE: TERMINADO (FT) */
 .marc-ft     { color:#22c55e; font-weight:700; font-size:15px; }
-.marc-live   { color:#22c55e; font-weight:700; font-size:15px; display:block; margin-bottom: 1px; }
-.marc-ns     { color:#334155; font-size:15px; }
 .badge-ft    { display:block; font-size:10px; color:#22c55e; font-weight: 600; }
-.badge-live  { display:block; font-size:10px; color:#ef4444; font-weight: 600; animation: blink 1s infinite; }
 
-/* MINUTO EN VIVO: AMARILLO */
+/* AMARILLO: EN VIVO (LIVE) */
+.marc-live   { color:#fbbf24; font-weight:700; font-size:15px; display:block; margin-bottom: 1px; }
+.badge-live  { display:block; font-size:10px; color:#fbbf24; font-weight: 600; animation: blink 1s infinite; }
 .live-minute { display:block; font-size:12px; color:#fbbf24; font-weight:700; margin-top:2px; font-family: 'JetBrains Mono', monospace; animation: blink 1.5s infinite; }
 
-.badge-ns    { display:block; font-size:15px; color:#cbd5e1; font-weight: 700; line-height: 1.3; margin-top: 2px; }
-.date-subtext { font-size: 12px; color: #818cf8; font-weight: 600; margin-top: 3px; }
+/* ROJO: NO EMPEZADO (NS) */
+.marc-ns     { color:#ef4444; font-size:15px; font-weight:700; }
+.badge-ns    { display:block; font-size:15px; color:#ef4444; font-weight: 700; line-height: 1.3; margin-top: 2px; }
+.date-subtext { font-size: 11px; color: #fca5a5; font-weight: 600; margin-top: 3px; }
 
 @keyframes blink { 50%{ opacity:0.4; } }
 
