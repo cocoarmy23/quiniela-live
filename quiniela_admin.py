@@ -15,7 +15,7 @@ supabase: Client = create_client(URL_SUPABASE, KEY_SUPABASE)
 
 ESPN_BASE = "https://site.api.espn.com/apis/site/v2/sports/soccer"
 
-st.set_page_config(page_title="Monitor de Quinielas", layout="wide", page_icon="⚽")
+st.set_page_config(page_title="Resultados Progol", layout="wide", page_icon="⚽")
 
 # ============================================================
 # ESTILOS GENERALES DE STREAMLIT
@@ -48,11 +48,14 @@ div.stButton > button:hover {
     border-color: #4b5680 !important;
 }
 
-/* Toggle label color claro */
+/* Toggle label color claro - forzado con múltiples selectores */
 div[data-testid="stToggle"] label,
+div[data-testid="stToggle"] label p,
+div[data-testid="stToggle"] label span,
+div[data-testid="stToggle"] > label,
 div[data-testid="stToggle"] p,
-div[data-testid="stToggle"] span,
-.stToggle label { color: #94a3b8 !important; font-size: 13px !important; font-weight: 500 !important; }
+div[data-testid="stToggle"] span:not([data-testid]),
+[data-testid="stToggle"] label { color: #94a3b8 !important; font-size: 13px !important; font-weight: 500 !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -332,6 +335,9 @@ def construir_bloque_filas(lista_partidos):
 
 rows_normal_html = construir_bloque_filas(partidos_normal)
 
+jugados_normal   = sum(1 for p in partidos_normal   if p.get("estado") in ("FT", "LIVE"))
+jugados_revancha = sum(1 for p in partidos_revancha if p.get("estado") in ("FT", "LIVE"))
+
 totales_normal_cells = ""
 for ci in carton_ids:
     ac = aciertos_normal.get(ci, 0)
@@ -364,8 +370,8 @@ st.markdown("""
 .qtable th, .qtable td { padding: 10px 8px; text-align: center; border-bottom: 1px solid #1e2640; }
 
 .th-equipos  { background:#111827; color:#cbd5e1; font-size:12px; font-weight:700; text-align:left; min-width:180px; letter-spacing: 0.5px; }
-.th-marc     { background:#111827; color:#cbd5e1; font-size:12px; font-weight:700; width:95px; min-width:95px; letter-spacing: 0.5px; }
-.td-marc     { background:#111827; width:95px; min-width:95px; vertical-align: middle; }
+.th-marc     { background:#111827; color:#cbd5e1; font-size:12px; font-weight:700; width:110px; min-width:110px; letter-spacing: 0.5px; }
+.td-marc     { background:#111827; width:110px; min-width:110px; vertical-align: middle; }
 .th-carton   { background:#1f2937; color:#ffffff; font-size:14px; font-weight:700; min-width:45px; border-bottom: 2px solid #374151; }
 
 .td-equipos  { text-align:left; }
@@ -403,6 +409,8 @@ st.markdown("""
     padding: 10px 12px !important;
 }
 .td-total    { font-weight:700; font-size:12px; background:#111827; }
+.td-total-equipo { text-align:left !important; padding-left: 10px !important; }
+.total-jugados { font-size:10px; font-weight:600; color:#4b5680; letter-spacing:0.3px; }
 .style-n     { color: #38bdf8; }
 .style-r     { color: #a78bfa; }
 .tr-total td { border-top: 2px solid #1e2640; border-bottom: 2px solid #2d3748; }
@@ -420,14 +428,17 @@ table_html = f"""
       <thead>
         <tr>
           <th class="th-equipos">PARTIDO</th>
-          <th class="th-marc">MARC</th>
+          <th class="th-marc">MARCADOR</th>
           {thead_ths}
         </tr>
       </thead>
       <tbody>
         {rows_normal_html}
         <tr class="tr-total">
-          <td colspan="2" class="td-total" style="color:#38bdf8; text-align:right; font-size:11px; padding-right:10px;">Aciertos Q1-Q14 →</td>
+          <td class="td-total td-total-equipo">
+            <span class="total-jugados">{jugados_normal}/{len(partidos_normal)} jugados</span>
+          </td>
+          <td class="td-total" style="color:#38bdf8; font-size:10px; text-align:right; padding-right:8px;">Aciertos →</td>
           {totales_normal_cells}
         </tr>
         <tr>
@@ -435,7 +446,10 @@ table_html = f"""
         </tr>
         {rows_revancha_html}
         <tr class="tr-total">
-          <td colspan="2" class="td-total" style="color:#a78bfa; text-align:right; font-size:11px; padding-right:10px;">Aciertos Revancha →</td>
+          <td class="td-total td-total-equipo">
+            <span class="total-jugados">{jugados_revancha}/{len(partidos_revancha)} jugados</span>
+          </td>
+          <td class="td-total" style="color:#a78bfa; font-size:10px; text-align:right; padding-right:8px;">Aciertos →</td>
           {totales_revancha_cells}
         </tr>
       </tbody>
