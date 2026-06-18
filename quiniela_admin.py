@@ -51,7 +51,8 @@ div.stButton > button:hover {
 /* Toggle label color claro */
 div[data-testid="stToggle"] label,
 div[data-testid="stToggle"] p,
-.stToggle label { color: #cbd5e1 !important; font-size: 13px !important; }
+div[data-testid="stToggle"] span,
+.stToggle label { color: #94a3b8 !important; font-size: 13px !important; font-weight: 500 !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -150,7 +151,12 @@ def actualizar_resultado_db(partido_id: int, goles_l, goles_v, estado: str, resu
 # ============================================================
 # APP PRINCIPAL (MONITOR EN VIVO)
 # ============================================================
-st.title("⚽ Monitor de Quinielas en Vivo")
+st.markdown("""
+<div style="margin-bottom: 18px;">
+  <div style="font-size:28px; font-weight:700; color:#cbd5e1; letter-spacing:0.5px; line-height:1.2;">Resultados Progol</div>
+  <div style="font-size:15px; font-weight:600; color:#64748b; letter-spacing:2px; text-transform:uppercase; margin-top:4px;">en vivo</div>
+</div>
+""", unsafe_allow_html=True)
 
 jornadas = cargar_jornadas()
 if not jornadas:
@@ -162,7 +168,7 @@ jid_mon = jornadas[0]["id"]  # Usar automáticamente la jornada activa más reci
 
 col_btn1, col_btn2 = st.columns([1, 2])
 btn_refresh  = col_btn1.button("Actualizar marcadores")
-auto_refresh = col_btn2.toggle("⏱ Auto-refrescar cada 1 hora", value=True)
+auto_refresh = col_btn2.toggle("Auto-refrescar cada 15 minutos", value=True)
 
 partidos_mon  = cargar_partidos(jid_mon)
 quinielas_mon = cargar_quinielas(jid_mon)
@@ -439,8 +445,8 @@ table_html = f"""
 
 st.markdown(table_html, unsafe_allow_html=True)
 
-# Temporizador para refresco fijo cada 1 hora (3600 segundos)
+# Temporizador para refresco cada 15 minutos (900 segundos)
 if auto_refresh:
     import time
-    time.sleep(3600)
+    time.sleep(900)
     st.rerun()
