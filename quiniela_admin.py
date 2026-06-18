@@ -40,11 +40,13 @@ html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
 .metric-num  { font-size: 32px; font-weight: 700; color: #e2e8f0; }
 .metric-lbl  { font-size: 11px; color: #4b5680; text-transform: uppercase; letter-spacing: 1px; }
 
-/* LEYENDA DE AUTOREFRESCAR EN UN COLOR MÁS CLARO Y LEGIBLE */
+/* LEYENDA DE AUTOREFRESCAR EN UN COLOR MUCHO MÁS CLARO Y ULTRA LEGIBLE */
+div[data-testid="stToggle"] label p, 
+div[data-testid="stToggle"] p, 
 .stToggle label p {
-    color: #94a3b8 !important;
-    font-size: 14px;
-    font-weight: 500;
+    color: #f1f5f9 !important;
+    font-size: 14px !important;
+    font-weight: 600 !important;
 }
 
 /* BOTÓN DE ACTUALIZAR AHORA ESTILIZADO CON EL ESTILO OSCURO */
