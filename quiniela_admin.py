@@ -130,14 +130,21 @@ def cargar_quinielas(jornada_id: int):
     except Exception:
         return []
 
-def actualizar_resultado_db(partido_id: int, goles_l, goles_v, estado: str, resultado):
+def actualizar_resultado_db(partido_id: int, goles_l, goles_v, estado: str, resultado,
+                            logo_local: str = "", logo_visita: str = ""):
     try:
-        supabase.table("partidos_jornada").update({
+        payload = {
             "goles_local":  goles_l,
             "goles_visita": goles_v,
             "estado":       estado,
             "resultado":    resultado,
-        }).eq("id", partido_id).execute()
+        }
+        # Solo persistir logos si ESPN los entregó (no sobreescribir con vacío)
+        if logo_local:
+            payload["logo_local"] = logo_local
+        if logo_visita:
+            payload["logo_visita"] = logo_visita
+        supabase.table("partidos_jornada").update(payload).eq("id", partido_id).execute()
     except Exception:
         pass
 
@@ -206,7 +213,9 @@ if btn_refresh or auto_refresh:
         completed = info.get("completed", False)
         estado = "FT" if completed or state == "post" else ("LIVE" if state == "in" else "NS")
         resultado = calcular_resultado(g_h, g_a) if estado == "FT" else None
-        actualizar_resultado_db(p["id"], g_h, g_a, estado, resultado)
+        logo_l = info.get("logo_home", "")
+        logo_v = info.get("logo_away", "")
+        actualizar_resultado_db(p["id"], g_h, g_a, estado, resultado, logo_l, logo_v)
 
     partidos_mon = cargar_partidos(jid_mon)
 
@@ -270,13 +279,17 @@ def construir_bloque_filas(lista_partidos):
         resultado = p.get("resultado")
 
         minuto_actual = ""
-        logo_home = ""
-        logo_away = ""
+        # Usar logos guardados en BD como fallback (para partidos de días pasados)
+        logo_home = p.get("logo_local", "") or ""
+        logo_away = p.get("logo_visita", "") or ""
         if p.get("fixture_id") and p.get("league_slug"):
             info_vivo = scores_vivo.get(p["league_slug"], {}).get(str(p["fixture_id"]), {})
             minuto_actual = info_vivo.get("detail", "")
-            logo_home     = info_vivo.get("logo_home", "")
-            logo_away     = info_vivo.get("logo_away", "")
+            # ESPN entregó logos frescos -> tomar esos (más actualizados)
+            if info_vivo.get("logo_home"):
+                logo_home = info_vivo["logo_home"]
+            if info_vivo.get("logo_away"):
+                logo_away = info_vivo["logo_away"]
 
         # Filtro estricto según el estado del partido
         if g_h is not None and g_a is not None:
