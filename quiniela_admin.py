@@ -170,7 +170,7 @@ col_btn1, col_btn2 = st.columns([1, 2])
 btn_refresh = col_btn1.button("Actualizar marcadores")
 
 if "auto_refresh" not in st.session_state:
-    st.session_state.auto_refresh = True
+    st.session_state.auto_refresh = False
 
 with col_btn2:
     toggle_label = "Auto-refrescar cada 15 min"
@@ -363,17 +363,50 @@ rows_normal_html = construir_bloque_filas(partidos_normal)
 jugados_normal   = sum(1 for p in partidos_normal   if p.get("estado") in ("FT", "LIVE"))
 jugados_revancha = sum(1 for p in partidos_revancha if p.get("estado") in ("FT", "LIVE"))
 
-totales_normal_cells = ""
-for ci in carton_ids:
-    ac = aciertos_normal.get(ci, 0)
-    totales_normal_cells += f'<td class="td-total style-n">{ac}</td>'
+def construir_celdas_totales(aciertos_dict, carton_ids, css_class):
+    """Genera celdas de totales con tamaño e intensidad de color según el ranking
+    de aciertos (de mayor a menor acumulado)."""
+    valores = [aciertos_dict.get(ci, 0) for ci in carton_ids]
+    max_ac = max(valores) if valores else 0
+    min_ac = min(valores) if valores else 0
+    rango = (max_ac - min_ac) or 1
+
+    # Orden descendente -> posición 0 es el de más aciertos
+    orden = sorted(carton_ids, key=lambda ci: aciertos_dict.get(ci, 0), reverse=True)
+    rank_map = {ci: i for i, ci in enumerate(orden)}
+    n = len(carton_ids) or 1
+
+    celdas = ""
+    for ci in carton_ids:
+        ac = aciertos_dict.get(ci, 0)
+        intensidad = (ac - min_ac) / rango  # 0 (menos aciertos) a 1 (más aciertos)
+        rank = rank_map[ci]
+
+        # Tamaño de fuente: top 1 más grande, escalando hacia abajo
+        if rank == 0 and max_ac > 0:
+            tam_fuente = "22px"
+            peso = "900"
+        elif rank <= 2 and max_ac > 0:
+            tam_fuente = "19px"
+            peso = "800"
+        else:
+            tam_fuente = "16px"
+            peso = "700"
+
+        celdas += (
+            f'<td class="td-total {css_class}" style="font-size:{tam_fuente}; font-weight:{peso};">'
+            f'<div class="acierto-num">{ac}</div>'
+            f'<div class="acierto-bar-track"><div class="acierto-bar-fill {css_class}-bar" '
+            f'style="width:{int(intensidad*100)}%;"></div></div>'
+            f'</td>'
+        )
+    return celdas
+
+totales_normal_cells = construir_celdas_totales(aciertos_normal, carton_ids, "style-n")
 
 rows_revancha_html = construir_bloque_filas(partidos_revancha)
 
-totales_revancha_cells = ""
-for ci in carton_ids:
-    ac = aciertos_revancha.get(ci, 0)
-    totales_revancha_cells += f'<td class="td-total style-r">{ac}</td>'
+totales_revancha_cells = construir_celdas_totales(aciertos_revancha, carton_ids, "style-r")
 
 # ============================================================
 # ESTILOS DE LA TABLA (CSS - CONFIGURACIÓN DE COLORES)
@@ -441,6 +474,29 @@ st.markdown("""
 .style-n     { color: #38bdf8; }
 .style-r     { color: #a78bfa; }
 .tr-total td { border-top: 2px solid #1e2640; border-bottom: 2px solid #2d3748; }
+
+/* === Sección de Aciertos: más vistosa === */
+.tr-total .td-total { padding: 12px 6px !important; vertical-align: middle; }
+.acierto-num {
+    line-height: 1;
+    margin-bottom: 6px;
+    font-family: 'JetBrains Mono', monospace;
+    text-shadow: 0 0 12px currentColor;
+}
+.acierto-bar-track {
+    width: 100%;
+    height: 5px;
+    background: #1e2640;
+    border-radius: 4px;
+    overflow: hidden;
+}
+.acierto-bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.3s ease;
+}
+.style-n-bar { background: linear-gradient(90deg, #0c4a6e, #38bdf8); }
+.style-r-bar { background: linear-gradient(90deg, #4c1d95, #a78bfa); }
 </style>
 """, unsafe_allow_html=True)
 
